@@ -1,0 +1,4 @@
+interface:
+  display_name: "Task PR Worker"
+  short_description: "Complete delegated task PRs safely"
+  default_prompt: "Use $task-pr-worker to complete one delegated task through implementation, review, PR, hook, and merge."

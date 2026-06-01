@@ -1,0 +1,4 @@
+interface:
+  display_name: "Deep Review"
+  short_description: "Perspective-based PR review checklist"
+  default_prompt: "Use $deep-review to review this pull request for recurring code review risks."

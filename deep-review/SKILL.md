@@ -9,7 +9,7 @@ Use this skill to perform a review-oriented pass over code changes. Prioritize a
 
 ## Workflow
 
-1. Identify the changed files, PR intent, base/head range, and any local review instructions. If the repository has `.github/REVIEW.md`, `AGENTS.md`, or a user-provided review rubric, read it before choosing scope or output format.
+1. Identify the changed files, PR intent, base/head range, original task scope, and any local review instructions. If the repository has `.github/REVIEW.md`, `AGENTS.md`, or a user-provided review rubric, read it before choosing scope or output format.
 2. Honor local review contracts first for language, severity buckets, ignored paths, line-number rules, and whether external publishing commands such as `gh api` are forbidden. Do not switch to machine-readable output unless the user explicitly asks for it.
 3. Classify the change area and guideline needs from changed paths, extensions, imports, frameworks, and PR intent. Use these guideline files:
    - Always read `references/review-checklist-common.md` for non-trivial reviews.
@@ -32,9 +32,17 @@ Use this skill to perform a review-oriented pass over code changes. Prioritize a
    - regression and boundary tests
 7. Run a two-pass finding filter:
    - First pass: list plausible issues from the checklist, impact research, and perspective reviews.
-   - Second pass: keep only findings that are grounded in the current diff, realistically actionable, and more than preference or speculative cleanup.
+   - Second pass: keep only findings that are grounded in the current diff, realistically actionable inside the original PR/task scope, and more than preference or speculative cleanup.
 8. Merge subagent findings with your own review, de-duplicate overlaps, verify each reported issue against the actual diff, and discard speculative comments that cannot be grounded in changed code.
 9. Report findings first, ordered by severity, with file and line references. Keep summary secondary.
+
+## Scope Control
+
+- Treat the review scope as the intersection of the user request, PR intent, changed behavior, and repository-local review contract.
+- Keep a finding actionable only when the current diff caused, exposed, or made materially worse the broken contract and the fix fits the original PR/task scope.
+- Classify valid but pre-existing, unrelated, or scope-expanding concerns as out-of-scope follow-up, even when they were noticed during review or requested in review feedback.
+- Do not require an out-of-scope concern to be fixed in the current PR. If the user asked to address review comments, explain that the comment exceeds the original scope and propose a separate issue/backlog item instead of expanding the implementation.
+- Create an issue only when the user or local workflow asks you to publish issues. Otherwise provide a concise issue draft with title, impact, evidence, and suggested owner/priority when useful.
 
 ## Subagent Instructions
 
@@ -55,6 +63,7 @@ If the PR is small, spawn only the relevant perspective agents when delegation i
 
 - Prefer repository-local review instructions over the skill defaults when they specify language, severity names, ignored file patterns, line-number rules, or command restrictions.
 - If a local rubric defines buckets such as Actionable, Outside Diff, and Nitpick, classify issues by fix necessity and diff eligibility before writing the final response. Keep low-risk style comments out of inline/actionable findings when the rubric says they belong in summary-only nitpicks.
+- If review feedback asks for work outside the original change scope, treat it like Outside Diff/follow-up unless the user explicitly expands the scope.
 - When the local workflow gives a diff command or fallback range, use that range and document any fallback used. Apply local skip rules for generated files, mocks, docs, protobuf/swagger output, or other non-reviewable artifacts before assigning subagents.
 - Do not publish review comments or call external APIs unless the user explicitly asks for posting. If local instructions say not to call `gh api`, treat that as a hard constraint.
 
@@ -79,6 +88,7 @@ If the PR is small, spawn only the relevant perspective agents when delegation i
 - Lead with concrete findings. Use severity implicitly through ordering.
 - Include exact file/line references whenever possible.
 - Explain the broken contract and the realistic failure mode.
+- Separate out-of-scope follow-ups from actionable findings. For each follow-up, state why it is outside the original scope and whether to draft or create an issue.
 - State missing tests only when they protect a specific risk.
 - When asked for review readiness or merge safety, separate blockers from notable non-blocking concerns.
 - If no issues are found, say so and mention residual risk or test gaps.

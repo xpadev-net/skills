@@ -1,4 +1,4 @@
 interface:
   display_name: "Task PR Orchestrator"
-  short_description: "Coordinate task threads through PR merge"
-  default_prompt: "Use $task-pr-orchestrator to coordinate task threads through PR, review hook, and merge."
+  short_description: "Review, test, merge, and archive task PRs"
+  default_prompt: "Use $task-pr-orchestrator to coordinate task threads, review and test merge-ready PRs, merge approved work, and archive completed workers."

@@ -1,6 +1,6 @@
 ---
 name: task-pr-orchestrator
-description: Coordinate a backlog of repository tasks by splitting safe work into separate background threads/worktrees, tracking task status in a task ledger, closing completed threads, handling worker-requested decomposition, and ensuring each worker reaches PR creation, independent review, review-hook success, and merge. Use when Codex is asked to orchestrate many coding tasks without directly editing implementation code.
+description: Coordinate a backlog of repository tasks by splitting safe work into separate background threads/worktrees, tracking task status in a task ledger, handling worker-requested decomposition, reviewing and testing merge-ready worker PRs, merging approved PRs, and archiving completed worker threads. Use when Codex is asked to orchestrate many coding tasks without directly editing implementation code.
 ---
 
 # Task PR Orchestrator
@@ -9,18 +9,28 @@ description: Coordinate a backlog of repository tasks by splitting safe work int
 
 Act as the parent-thread orchestrator. Do not implement product code in the parent thread. Delegate implementation to small worker threads, each using its own worktree and branch.
 
-Allowed parent mutations are limited to the task ledger or other files explicitly permitted by the user after the current request. Never stage, commit, push, or merge from the parent thread unless the user explicitly asks for parent-owned git work.
+Allowed parent mutations are limited to the task ledger, orchestrator-owned PR merge actions, worker-thread archival, or other files explicitly permitted by the user after the current request. Never implement product code in the parent thread.
+
+## Repository Trust Boundary
+
+Before delegating or reporting PR lifecycle work, identify the GitHub repository owner from the current remote or the explicit repository target.
+
+Only repositories owned by `xpadev-net` may use the default autonomous PR lifecycle: create PRs, run review hooks, and merge after orchestrator-owned review and required checks pass.
+
+For any repository not owned by `xpadev-net`, do not instruct workers to create PRs unless the user explicitly approved that action for that repository in the current task, and do not merge PRs unless the user explicitly approved orchestrator-owned merge for that repository in the current task. If approval is missing, delegate implementation, validation, review, and final reporting only; require the worker to stop before PR creation or before merge-ready handoff and ask the orchestrator/user for direction.
 
 ## Operating Loop
 
 1. Read the task ledger and identify statuses such as unstarted, in progress, split in progress, stopped, blocked, and complete.
 2. Check open PRs with `gh pr list/view` and read active worker threads.
-3. For completed worker reports, verify the PR is merged, record PR number, merge commit, and review-hook exit 0 in the ledger, then archive/close the worker thread.
+3. For merge-ready worker reports, read the PR, worker validation, independent review evidence, and `gh-review-hook` result; run orchestrator-owned review and required tests/checks before merging.
 4. For blocked worker reports, record the blocker only when it is concrete and cannot be resolved by ordinary worker iteration.
 5. For still-running workers, leave them alone unless a stale push, missing PR, or ambiguous blocker needs a short follow-up.
 6. Start additional unstarted tasks only when their files, domains, or dependencies do not conflict with active workers.
 7. Keep tasks small. Split broad tasks by route group, provider, UI area, validation surface, or user workflow whenever that reduces review risk or avoids conflicts.
 8. If a worker reports that a task is too large or should be decomposed, close/stop that worker thread, update the ledger with the reason, then create new worker threads for the smaller split tasks.
+9. If a worker reports that `gh-review-hook` has not exited 0 after 30 fix-and-review iterations, treat it as a stopped hook-iteration-limit review, not as a blocker. Inspect the latest review output and implementation before deciding the next action.
+10. After orchestrator-owned review, tests, and merge succeed, record PR number, merge commit, validation evidence, and review-hook exit 0 or an approved 30-iteration hook exception in the ledger, then archive/close the worker thread.
 
 Do not sit in a manual polling loop. For long-running worker activity, create or update a recurring automation/heartbeat when the platform supports it, and let that scheduled callback perform the next orchestration check. Prefer automation over repeated sleeps, busy waiting, or frequent manual status checks.
 
@@ -41,12 +51,30 @@ When creating a worker thread, include:
 - Requirement for independent review before PR.
 - Requirement for worker self-review to use `$deep-review` when that skill is available.
 - Requirement for workers to use subagents actively for research, implementation support, and review when available.
-- Requirement for the worker to message or report back to the orchestrator thread when the task is merged, blocked, stopped, or needs decomposition.
+- Requirement for the worker to message or report back to the orchestrator thread when the PR is merge-ready, blocked, stopped, or needs decomposition.
+- Requirement for the worker to report out-of-scope review findings and wait for orchestrator direction on whether to file separate work or handle them in the current PR.
 - Requirement for the worker to stop and request orchestrator decomposition instead of continuing when scope becomes too large, crosses ownership boundaries, or creates a broad diff.
-- Requirement to create a PR, run the review hook until exit 0, push fixes as normal commits, and merge after hook success.
-- Final report requirements: PR URL, merge commit, validation evidence, review evidence, and review-hook exit 0.
+- Requirement to create a PR, run the review hook until exit 0, push fixes as normal commits, and report merge-ready status without merging when the repository is owned by `xpadev-net` or the user explicitly approved PR creation for the current non-`xpadev-net` repository.
+- Requirement that workers never merge PRs; the orchestrator owns final review, required tests/checks, merge, ledger completion, and worker-thread archival.
+- For non-`xpadev-net` repositories without explicit approval, requirement to stop after implementation, validation, and review evidence are ready, and report that PR creation or orchestrator-owned merge needs user approval.
+- Requirement to keep iterating on non-zero `gh-review-hook` results instead of reporting blocked only for hook failure, but to stop after 30 fix-and-review iterations and ask the orchestrator to inspect the current state.
+- Final report requirements: PR URL, branch head, validation evidence, review evidence, `gh-review-hook` exit 0 or the stopped 30-iteration hook-limit state, local/remote cleanliness, and explicit confirmation that the worker did not merge.
 
 Prefer a new worker over expanding a running worker when the next task is independent. Prefer waiting when the next task touches the same files or depends on a running task.
+
+## Out-of-Scope Findings
+
+When a worker reports an out-of-scope review finding, decide whether to create separate work or include it in the current PR. If the finding should be handled separately, instruct the worker not to change the current PR for that finding and to add a factual out-of-scope note to the PR description. If it should be handled in the current PR, explicitly expand the worker scope and record why that is safer than separate follow-up work.
+
+## Hook Iteration Limit Reports
+
+When a worker reports a 30-iteration `gh-review-hook` limit:
+
+1. Read the PR, latest worker report, current diff, and recent hook/review findings.
+2. If findings are contradicting or oscillating, run `$deep-review` on the implementation and latest diff. If deep review finds no required issues, you may approve an orchestrator-owned merge despite the hook not exiting 0 only when the repository is owned by `xpadev-net` or the user explicitly approved merge for the current non-`xpadev-net` repository, recording the review-hook exception and rationale in the ledger.
+3. If the remaining work is clearly too large, crosses ownership boundaries, or has become a broad diff, stop the worker, update the ledger, split the work, and delegate replacement slices to other workers.
+4. If only small concrete findings remain, instruct the same worker to continue fixing and rerunning the hook from the current PR.
+5. If the evidence is insufficient to classify the state, ask the worker for the missing hook output, implementation summary, validation evidence, or branch status instead of marking the task blocked.
 
 ## Split Requests
 
@@ -65,10 +93,23 @@ Update the ledger whenever orchestration state changes:
 
 - Mark newly delegated work as `in progress` with thread ID and branch.
 - Mark split work as `split in progress` and list completed and remaining slices.
-- Mark stopped work with the user-approved reason.
-- Mark complete only after current evidence proves merge completion and required hook success.
+- Mark stopped work with the user-approved or orchestrator-approved reason.
+- Mark complete only after current evidence proves merge completion and required hook success, or after an explicit orchestrator-approved 30-iteration hook exception backed by deep-review evidence.
 
 Do not claim completion from memory. Verify against current PR state, worker final report, or both.
+
+## Orchestrator Merge Gate
+
+Before merging a worker PR:
+
+1. Verify the worker report includes PR URL/number, branch head, validation evidence, independent review evidence, `gh-review-hook` exit 0 or an approved hook-limit exception path, and local/remote cleanliness.
+2. Inspect the PR diff and recent commits with `gh pr view` and `gh pr diff`.
+3. Run the required orchestrator-owned review and tests/checks from the task ledger or delegation prompt. If the worker validation is stale or incomplete, rerun the relevant checks before merge.
+4. If review or tests find in-scope issues, send the worker concrete follow-up instructions and leave the PR unmerged.
+5. If only out-of-scope findings remain, apply the out-of-scope process before merge.
+6. Verify the branch is not behind and all required fixes are pushed. If the branch is behind, instruct the worker to update it or perform the normal merge/update only when that is explicitly orchestrator-owned for the repository.
+7. Merge the PR only after the required evidence is current and acceptable. Do not force push or rewrite history when the branch already has an open PR.
+8. Record the merge commit and evidence in the ledger, then archive/close the worker thread.
 
 ## Thread Hygiene
 

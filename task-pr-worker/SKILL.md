@@ -1,6 +1,6 @@
 ---
 name: task-pr-worker
-description: Execute one delegated repository task in a dedicated worktree from implementation through validation, deep-review self-review, subagent-assisted review, PR creation, review-hook iteration, merge, and orchestrator notification. Use when Codex is acting as a worker thread for a narrowly scoped coding task delegated by an orchestrator.
+description: Execute one delegated repository task in a dedicated worktree from implementation through validation, deep-review self-review, subagent-assisted review, PR creation, review-hook iteration, and merge-ready handoff to the orchestrator. Use when Codex is acting as a worker thread for a narrowly scoped coding task delegated by an orchestrator.
 ---
 
 # Task PR Worker
@@ -15,9 +15,9 @@ When available, use subagents proactively for bounded research, implementation c
 
 Before pushing PR lifecycle work, identify the GitHub repository owner from the current remote or the delegation prompt.
 
-Only repositories owned by `xpadev-net` may use the default autonomous PR lifecycle: create PRs, run review hooks, and merge after required checks pass.
+Only repositories owned by `xpadev-net` may use the default autonomous PR lifecycle up to merge-ready handoff: create PRs, run review hooks, push fixes, and report to the orchestrator for final review, tests, merge, and archival.
 
-For any repository not owned by `xpadev-net`, do not create a PR or merge a PR unless the user or orchestrator explicitly approved that action for the current repository. If approval is missing, complete implementation, validation, and review, then stop before PR creation or merge and report to the orchestrator that user approval is required.
+For any repository not owned by `xpadev-net`, do not create a PR unless the user or orchestrator explicitly approved PR creation for the current repository. Never merge a PR. If approval is missing, complete implementation, validation, and review, then stop before PR creation or merge-ready handoff and report to the orchestrator that user approval is required.
 
 ## Startup Checklist
 
@@ -39,8 +39,8 @@ Report immediately, then stop and wait for direction, when:
 - A required precondition is missing or unclear, including branch/worktree setup, task ownership, task ledger access, credentials, repository trust approval, validation tooling, or required review tooling.
 - A judgment call is needed that could change scope, risk, ownership, PR lifecycle, validation requirements, or acceptance criteria.
 - The task is blocked, needs decomposition, exceeds delegated ownership, or cannot continue without user or orchestrator input.
-- Work reaches an allowed non-merge stopping point, including approval-required pauses for non-`xpadev-net` repositories.
-- The task is complete, the PR is merged, or the delegation explicitly allowed stopping without merge.
+- Work reaches an allowed stopping point, including approval-required pauses for non-`xpadev-net` repositories.
+- The PR is merge-ready, or the delegation explicitly allowed stopping without PR creation.
 
 Include the reason for stopping, current branch or PR state, local change state, validation and review evidence collected so far, concrete options or recommended next action, and any risks of waiting. If no orchestrator messaging tool is available, put the same report in the final response and state that the orchestrator thread could not be contacted directly.
 
@@ -84,7 +84,7 @@ If the orchestrator instructs you to file or track it separately and not address
 
 ## PR and Hook Loop
 
-Apply this loop only when the repository is owned by `xpadev-net` or PR creation and merge were explicitly approved for the current non-`xpadev-net` repository.
+Apply this loop only when the repository is owned by `xpadev-net` or PR creation was explicitly approved for the current non-`xpadev-net` repository.
 
 1. Stage and commit coherent changes with normal hooks enabled.
 2. Push the branch without force pushing unless explicitly allowed and safe.
@@ -93,30 +93,30 @@ Apply this loop only when the repository is owned by `xpadev-net` or PR creation
 5. If the hook reports in-scope findings, fix them, commit, push, and rerun. For out-of-scope findings, follow the out-of-scope review finding process before deciding whether to modify the PR.
 6. If the hook reports the branch is behind, merge the base branch normally; do not rewrite history when the branch already has an open PR.
 7. Repeat until `gh-review-hook` exits 0 or the 30-iteration hook limit is reached.
-8. After hook exit 0, verify no unpushed or unstaged changes remain, then merge the PR.
-9. After merge, send or otherwise provide a completion message to the orchestrator thread with the final report details before stopping.
+8. After hook exit 0, verify no unpushed or unstaged changes remain, then send or otherwise provide a merge-ready report to the orchestrator thread with the final report details before stopping.
+9. Do not merge the PR. The orchestrator owns final review, required tests/checks, merge, ledger completion, and worker-thread archival.
 
-If push appears stale, verify the remote ref before retrying. Never merge a PR while local required fixes are unpushed.
+If push appears stale, verify the remote ref before retrying. Never report merge-ready while local required fixes are unpushed.
 
 Do not report blocked only because `gh-review-hook` has not exited 0. Treat hook findings as ordinary review iteration: fix valid findings, commit, push, and rerun.
 
-After 30 fix-and-review iterations without `gh-review-hook` exit 0, stop local iteration and ask the orchestrator to inspect the current state. Report this as a stopped hook-iteration-limit review, not as blocked. Include the latest hook output summary, the recurring or changing findings, the current implementation summary, PR URL/number, branch head, validation evidence, independent review evidence, and whether any local or unpushed changes remain. Wait for orchestrator direction before continuing, decomposing, or merging.
+After 30 fix-and-review iterations without `gh-review-hook` exit 0, stop local iteration and ask the orchestrator to inspect the current state. Report this as a stopped hook-iteration-limit review, not as blocked. Include the latest hook output summary, the recurring or changing findings, the current implementation summary, PR URL/number, branch head, validation evidence, independent review evidence, and whether any local or unpushed changes remain. Wait for orchestrator direction before continuing or decomposing.
 
 ## Final Report
 
 Report in the repository's requested language. Include:
 
 - PR URL and number.
-- Merge commit.
 - Commits or important branch heads if relevant.
 - Targeted and full validation results.
 - Independent review result.
 - `gh-review-hook` exit 0, or the orchestrator-directed outcome after a 30-iteration hook limit.
 - Any out-of-scope findings deferred by orchestrator direction and where they are documented in the PR description.
 - Any waiver or residual risk.
+- Confirmation that the PR was not merged and is ready for orchestrator-owned final review, tests, merge, and archival.
 
-Do not mark the task complete unless the PR is merged or the delegation explicitly allowed a non-merge stopping point.
+Do not mark the task complete unless the delegation explicitly allowed worker completion at merge-ready handoff or another non-merge stopping point. Otherwise report merge-ready and wait for orchestrator completion.
 
-For non-`xpadev-net` repositories where PR creation or merge was not explicitly approved, report the ready branch or diff state, validation evidence, review evidence, and the exact approval needed next.
+For non-`xpadev-net` repositories where PR creation was not explicitly approved, report the ready branch or diff state, validation evidence, review evidence, and the exact approval needed next.
 
 If you are blocked or request decomposition for a reason other than repeated non-zero `gh-review-hook` results, report that to the orchestrator immediately instead of continuing to make speculative changes. Include the reason, current validation state, whether any branch/PR exists, and the recommended replacement tasks.

@@ -30,6 +30,16 @@ For any repository not owned by `xpadev-net`, do not create a PR unless the user
 
 Use the repository shell wrapper when local instructions require it. Avoid watch mode and interactive commands.
 
+Completing startup, onboarding, repository instruction loading, or the initial plan is not a stopping point. Continue into implementation unless a required precondition is missing, a scope decision is needed, or another reportable stop condition below applies.
+
+Do not stop solely because repo harness rule files are absent when the delegation prompt and available repository instructions still provide enough scope and validation guidance. Record the absence in the final report if relevant and proceed.
+
+Do not stop solely because the worktree began detached after you successfully created or checked out the requested branch. Do not stop solely because unrelated tooling artifacts are untracked; leave them unstaged and proceed unless they interfere with the task.
+
+Do not report "blocked early by setup constraints" or "context ended before implementation" when no concrete external decision is required. Continue the delegated task from the current branch.
+
+If you must stop during startup or setup anyway, report to the orchestrator before stopping. Include the concrete external decision or missing precondition, branch state, local change state, validation not yet run, and the recommended next action.
+
 ## Orchestrator Reporting Requirements
 
 Before stopping work for any reason, report to the orchestrator thread when an orchestrator thread or handoff channel is available. Do this even when the next action is simply to wait for direction or approval.

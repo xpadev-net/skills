@@ -51,7 +51,9 @@ When creating a worker thread, include:
 - Requirement for independent review before PR.
 - Requirement for worker self-review to use `$deep-review` when that skill is available.
 - Requirement for workers to use subagents actively for research, implementation support, and review when available.
+- Requirement that completing worker startup, onboarding, repository instruction loading, or initial planning is not a stopping point unless a reportable precondition is missing.
 - Requirement for the worker to message or report back to the orchestrator thread when the PR is merge-ready, blocked, stopped, or needs decomposition.
+- Requirement that the worker must report to the orchestrator before stopping for any reason, including startup or setup problems.
 - Requirement for the worker to report out-of-scope review findings and wait for orchestrator direction on whether to file separate work or handle them in the current PR.
 - Requirement for the worker to stop and request orchestrator decomposition instead of continuing when scope becomes too large, crosses ownership boundaries, or creates a broad diff.
 - Requirement to create a PR, run the review hook until exit 0, push fixes as normal commits, and report merge-ready status without merging when the repository is owned by `xpadev-net` or the user explicitly approved PR creation for the current non-`xpadev-net` repository.
@@ -61,6 +63,18 @@ When creating a worker thread, include:
 - Final report requirements: PR URL, branch head, validation evidence, review evidence, `gh-review-hook` exit 0 or the stopped 30-iteration hook-limit state, local/remote cleanliness, and explicit confirmation that the worker did not merge.
 
 Prefer a new worker over expanding a running worker when the next task is independent. Prefer waiting when the next task touches the same files or depends on a running task.
+
+## Worker Startup Stability Check
+
+After creating a worker thread, wait a short interval, then verify the worker is still active after startup and onboarding. Use a near-term automation or platform wakeup when available; if not available, perform one bounded delayed check and then return to normal heartbeat behavior.
+
+On the startup stability check:
+
+- Read the worker thread state or latest worker message.
+- If the worker stopped after onboarding, repository instruction loading, initial planning, branch creation, or setup inspection without a reportable blocker, send a short resume instruction to continue the delegated task from the current state.
+- Treat reports such as "blocked early by setup constraints", "implementation has not started", or "context ended before implementation" as resume candidates when they only mention recoverable setup facts such as absent repo rule files, a detached worktree already fixed by branch creation, or unrelated untracked tooling artifacts.
+- If the worker reported a concrete blocker, decomposition need, approval pause, or merge-ready state, handle it through the normal operating loop.
+- Do not mark the task blocked or start a replacement worker solely because the worker paused after onboarding; try one resume first unless the thread cannot be resumed.
 
 ## Out-of-Scope Findings
 
@@ -124,6 +138,8 @@ Use scheduled automation actively for ongoing orchestration:
 - Create a heartbeat or recurring check when workers are expected to run for more than a short interactive turn.
 - Reuse or update an existing automation instead of creating duplicates.
 - Keep automation prompts self-contained: inspect PRs, read worker summaries, update the ledger when allowed, archive completed workers, and report only blockers or material changes.
+- In startup follow-up prompts, explicitly tell workers to continue implementation from the current branch when setup findings are recoverable and no user decision is required.
+- In startup follow-up prompts, explicitly tell workers to report to the orchestrator before any future stop.
 - Delete or pause the automation when all delegated tasks are merged, stopped, or no longer worth checking.
 - Avoid ad hoc polling in the main thread. If nothing needs immediate action, end the turn and rely on the automation to wake the orchestrator later.
 

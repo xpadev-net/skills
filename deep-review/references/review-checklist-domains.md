@@ -1,12 +1,6 @@
-# Review Checklist Index
+# Review Checklist: Domain Index
 
-This file is kept as a compatibility entry point. Prefer loading the split checklist files directly.
-
-## Always Load For Non-Trivial Reviews
-
-- `review-checklist-common.md`: shared review concerns, impact-scope research, core contracts, and final finding filter.
-
-## Load Only Relevant Domain Files
+Domain-specific checklists are split into one file per domain. Prefer reading only the relevant files.
 
 - `domains/api-backend.md`: API / backend services
 - `domains/ui.md`: user interfaces

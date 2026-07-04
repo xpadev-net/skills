@@ -5,15 +5,18 @@ description: Review pull requests and code changes using reusable, perspective-b
 
 # Deep Review
 
-Use this skill to perform a review-oriented pass over code changes. Prioritize actionable bugs, regressions, missing tests, and broken contracts over style commentary. For review tasks, use subagents even when the user did not explicitly request them.
+Use this skill to perform a review-oriented pass over code changes. Prioritize actionable bugs, regressions, missing tests, and broken contracts over style commentary. For review tasks, use subagents when the current runtime and user instructions allow delegation.
 
 ## Workflow
 
 1. Identify the changed files, PR intent, base/head range, and any local review instructions. If the repository has `.github/REVIEW.md`, `AGENTS.md`, or a user-provided review rubric, read it before choosing scope or output format.
 2. Honor local review contracts first for language, severity buckets, ignored paths, line-number rules, and whether external publishing commands such as `gh api` are forbidden. Do not switch to machine-readable output unless the user explicitly asks for it.
-3. Classify the change area: API/backend, user interface, automation, external commands/artifacts, event-driven or realtime workflows, external integration, data store/background jobs, auth/security, tests, or cross-cutting refactor.
-4. Read only the relevant sections of `references/review-checklist.md`.
-5. Always use subagents by review perspective before finalizing the review. Do this even when the user only asks for a generic "review" and does not mention subagents. Assign focused, non-overlapping review passes so gaps are less likely:
+3. Classify the change area and guideline needs from changed paths, extensions, imports, frameworks, and PR intent. Use these guideline files:
+   - Always read `references/review-checklist-common.md` for non-trivial reviews.
+   - Read only relevant files under `references/domains/` for APIs/backends, UI, Rails/Ruby, Next.js/React/TypeScript, automation, platform PR review workflows, external commands/artifacts, event-driven workflows, integrations, data stores/jobs, media/time-series, Go services, or tests.
+   - `references/review-checklist.md` is a compatibility index; prefer the split files above.
+4. Before writing findings, investigate plausible impact outside the changed files. Check callers, consumers, data/schema users, tests, duplicated logic, local plans, ADRs, standards docs, and contract boundaries affected by the diff. Keep this bounded to likely risk, but do not review changed lines in isolation when the change may affect existing behavior.
+5. Use subagents by review perspective before finalizing the review when delegation is available and allowed. Assign focused, non-overlapping review passes so gaps are less likely:
    - boundary validation and type/schema contracts
    - auth, ownership, namespace, and security
    - failure semantics, API/realtime contracts, and resource lifecycle
@@ -27,8 +30,11 @@ Use this skill to perform a review-oriented pass over code changes. Prioritize a
    - concurrency/retry/resource lifecycle
    - user-visible UI behavior
    - regression and boundary tests
-7. Merge subagent findings with your own review, de-duplicate overlaps, verify each reported issue against the actual diff, and discard speculative comments that cannot be grounded in changed code.
-8. Report findings first, ordered by severity, with file and line references. Keep summary secondary.
+7. Run a two-pass finding filter:
+   - First pass: list plausible issues from the checklist, impact research, and perspective reviews.
+   - Second pass: keep only findings that are grounded in the current diff, realistically actionable, and more than preference or speculative cleanup.
+8. Merge subagent findings with your own review, de-duplicate overlaps, verify each reported issue against the actual diff, and discard speculative comments that cannot be grounded in changed code.
+9. Report findings first, ordered by severity, with file and line references. Keep summary secondary.
 
 ## Subagent Instructions
 
@@ -43,7 +49,7 @@ Use this division by default:
 - **Tests/concurrency reviewer**: missing regression tests, weak assertions, bulk updates, conditional updates, job/status transitions, retry races, migration safety.
 - **Automation/artifact reviewer**: automation noise filtering, revision/time windows, API pagination, external command timeout/cancellation, temp file cleanup, generated artifact safety, timestamp/sample alignment.
 
-If the PR is small, spawn only the relevant perspective agents, but still use at least one subagent. If subagents are unavailable in the current runtime, perform the same perspective passes yourself and explicitly state in the final review that subagents could not be used.
+If the PR is small, spawn only the relevant perspective agents when delegation is available and allowed. If subagents are unavailable or prohibited in the current runtime, perform the same perspective passes yourself and explicitly state in the final review that subagents could not be used.
 
 ## Local Review Contracts
 
@@ -51,6 +57,13 @@ If the PR is small, spawn only the relevant perspective agents, but still use at
 - If a local rubric defines buckets such as Actionable, Outside Diff, and Nitpick, classify issues by fix necessity and diff eligibility before writing the final response. Keep low-risk style comments out of inline/actionable findings when the rubric says they belong in summary-only nitpicks.
 - When the local workflow gives a diff command or fallback range, use that range and document any fallback used. Apply local skip rules for generated files, mocks, docs, protobuf/swagger output, or other non-reviewable artifacts before assigning subagents.
 - Do not publish review comments or call external APIs unless the user explicitly asks for posting. If local instructions say not to call `gh api`, treat that as a hard constraint.
+
+## Checklist Selection
+
+- For every non-trivial review, load `references/review-checklist-common.md`.
+- Load domain files from `references/domains/` only when changed files, imports, framework conventions, or PR intent make them relevant. When unsure between two plausible domains, read both.
+- Before using domain checklists, say briefly which domain files are being used and why any obvious files were excluded.
+- Keep domain guidance subordinate to repository-local review instructions and the actual diff.
 
 ## Core Review Heuristics
 
@@ -61,26 +74,15 @@ If the PR is small, spawn only the relevant perspective agents, but still use at
 - Look for cleanup holes around `finally`, stream aborts, timers, subscriptions, permits, counters, jobs, and early returns.
 - Require tests for the bug or contract being protected, not just the happy path. Treat missing tests as actionable only when they protect a realistic regression or changed behavior; otherwise classify them as lower-severity coverage suggestions when the local rubric supports that distinction.
 
-## Area-Specific Focus
-
-- **API/backend**: request/response schemas, auth guards, owner checks, status codes, pagination/count cost, and conditional data-store updates under concurrency.
-- **User interface**: failed user actions, empty/loading/error states, page titles, labels, accessibility, shared UI utilities, effect/listener cleanup, and unmount/dispose safety.
-- **External integrations**: upstream response validation, missing optional fields, safe fallback behavior, namespace/scope checks, and upstream error mapping.
-- **Automation**: correct revision and time-window selection, machine-generated noise filtering, delayed/async result waits, transient request retry bounds, idempotency of retried mutations, and internal artifact leakage.
-- **External commands/artifacts/media**: context-aware process spawning, timeout and process-group cleanup, temp file uniqueness and cleanup, download header sanitization, partial-read/delete races, and timestamp/sample alignment.
-- **Event-driven or realtime workflows**: workspace/channel scoping, invoker authorization, permission-cache fail-closed behavior, state-cache misses, grace timers, reconnect/requeue behavior, and user-visible failure reporting.
-- **Data stores/background jobs/batch**: bulk update scope, conditional expressions, job/status semantics, retry races, migration safety, and producer/consumer state-machine agreement.
-- **Go/backend services**: context propagation, nil-pointer risks, transaction boundaries, deferred cleanup, error wrapping/classification, gomock expectation drift, pagination/filter consistency, and domain-layer boundary violations.
-- **Realtime connections/streaming**: perform auth and limit rejection before stream start, preserve protocol-level failures, release permits on disconnect/abort/error, and avoid shared fallback buckets.
-
 ## Output Expectations
 
 - Lead with concrete findings. Use severity implicitly through ordering.
 - Include exact file/line references whenever possible.
 - Explain the broken contract and the realistic failure mode.
 - State missing tests only when they protect a specific risk.
+- When asked for review readiness or merge safety, separate blockers from notable non-blocking concerns.
 - If no issues are found, say so and mention residual risk or test gaps.
 
 ## Reference
 
-Use `references/review-checklist.md` for the full checklist and examples of recurring review concerns. Load it when the change touches a non-trivial area or when you need a structured checklist for a review.
+Use `references/review-checklist-common.md` for shared review concerns and the individual files under `references/domains/` for domain-specific concerns. `references/review-checklist.md` and `references/review-checklist-domains.md` remain as indexes for older references.

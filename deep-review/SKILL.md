@@ -7,6 +7,19 @@ description: Review pull requests and code changes using reusable, perspective-b
 
 Use this skill to perform a review-oriented pass over code changes. Prioritize actionable bugs, regressions, missing tests, and broken contracts over style commentary. For review tasks, use subagents when the current runtime and user instructions allow delegation.
 
+## Review Mindset
+
+When a rule below does not cover the situation, fall back to these principles:
+
+- Treat the diff as a claim — "this change is safe and complete" — and treat your job as finding the strongest counterexample, not summarizing the change.
+- A finding is real only when you can name the broken contract and a realistic failure path. "This looks odd" is not a finding; "this input reaches this sink unvalidated and fails like this" is.
+- Be adversarial toward the code but skeptical of yourself: search as hard for evidence that refutes your finding as you did to produce it, and drop findings the evidence kills.
+- Spend attention proportional to blast radius — auth, money, data mutation, contract boundaries, failure handling — not proportional to diff size or file order.
+- Absence is as reviewable as presence: removed guards, missing tests, and unhandled failure paths are first-class findings, not gaps to skip past.
+- Scope discipline is part of quality: distinguish "this PR broke it" from "this was already broken", and route the second to follow-up instead of blocking the PR.
+- Review the code as it is, not as the diff excerpt suggests. A hypothesis formed from diff hunks stays a hypothesis until checked against the surrounding source, callers, and tests — the moment a story feels most convincing is exactly when it needs verification.
+- Report faithfully and calibrate confidence. A clean review that says "no issues found, residual risk is X" is a valid, honest outcome; never manufacture findings to justify the effort spent, and never present an unverified suspicion with the same certainty as a confirmed defect.
+
 ## Workflow
 
 1. Identify the changed files, PR intent, base/head range, original task scope, and any local review instructions. If the repository has `.github/REVIEW.md`, `AGENTS.md`, or a user-provided review rubric, read it before choosing scope or output format.

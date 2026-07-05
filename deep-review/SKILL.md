@@ -31,27 +31,28 @@ When a rule below does not cover the situation, fall back to these principles:
    - `references/review-checklist.md` is a compatibility index; prefer the split files above.
 5. Before writing findings, investigate plausible impact outside the changed files. Check callers, consumers, data/schema users, tests, duplicated logic, local plans, ADRs, standards docs, and contract boundaries affected by the diff. Keep this bounded to likely risk, but do not review changed lines in isolation when the change may affect existing behavior.
 6. Review deleted and replaced code as a first-class angle: for every removed guard, check, cleanup, or test, name the invariant it enforced and locate where the new code re-establishes it. A removal with no replacement is a candidate finding, not a simplification.
-7. Use subagents by review perspective before finalizing the review when delegation is available and allowed. Assign focused, non-overlapping review passes so gaps are less likely:
+7. For bug fixes, correctness repairs, optimizations, migrations, and complex refactors, review the investigation quality as well as the diff. Use `references/investigation-quality.md` to check whether the change is grounded in a baseline, code anchors, a root-cause hypothesis that was checked against counter-evidence, and an appropriate rollout/validation path.
+8. Use subagents by review perspective before finalizing the review when delegation is available and allowed. Assign focused, non-overlapping review passes so gaps are less likely:
    - boundary validation and type/schema contracts
    - auth, injection, secrets, ownership, namespace, and security
    - failure semantics, API/realtime contracts, and resource lifecycle
    - user-facing UX, accessibility, and UI lifecycle when interface files changed
    - tests, regression coverage, concurrency, retry, and data/job state transitions
    - automation, external commands, generated artifacts, and event-driven workflows when relevant
-8. Review locally as the integrator. Do not redo the perspective passes; focus on what individual subagents cannot see — cross-perspective interactions, removed-code invariants, deploy/rollback sequencing, and the highest-risk contracts end to end:
+9. Review locally as the integrator. Do not redo the perspective passes; focus on what individual subagents cannot see — cross-perspective interactions, removed-code invariants, deploy/rollback sequencing, and the highest-risk contracts end to end:
    - boundary data validation
    - auth/ownership preservation
    - failure semantics
    - concurrency/retry/resource lifecycle
    - user-visible UI behavior
    - regression and boundary tests
-9. Merge subagent findings with your own review, de-duplicate overlaps, then run a verification filter on every candidate:
+10. Merge subagent findings with your own review, de-duplicate overlaps, then run a verification filter on every candidate:
    - Grounding: the issue is reproducible against the current diff, not an outdated thread or stale file.
    - Refutation: actively search for counter-evidence before publishing — an upstream middleware guard, caller-side validation, a framework default, or a covering test that already handles the case. Quote the line that would refute the finding if it exists; drop the finding if it does.
    - Scope: the finding is realistically actionable inside the original PR/task scope and more than preference or speculative cleanup.
    - When two subagents disagree about the same code, re-verify against the source rather than silently picking a side or dropping it as a duplicate; if the disagreement survives, report the concern with both readings — genuine ambiguity is itself a finding.
    - A serious concern that cannot be fully confirmed within the review budget may be reported with explicit uncertainty ("low confidence, please verify: ...") instead of being dropped, when the potential impact justifies it.
-10. Report findings first, ordered by severity, with file and line references. Keep summary secondary.
+11. Report findings first, ordered by severity, with file and line references. Keep summary secondary.
 
 ## Scope Control
 
@@ -119,3 +120,4 @@ If the PR is small, spawn only the relevant perspective agents when delegation i
 ## Reference
 
 Use `references/review-checklist-common.md` for shared review concerns and the individual files under `references/domains/` for domain-specific concerns. `references/review-checklist.md` remains as a compatibility index for older references.
+Use `references/investigation-quality.md` when reviewing bug-fix, correctness, optimization, migration, or complex refactor work where the quality of the codebase investigation affects the safety of the change.

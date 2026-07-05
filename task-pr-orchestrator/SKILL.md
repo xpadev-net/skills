@@ -74,6 +74,7 @@ When creating a worker thread, include:
 - Requirement that workers never merge PRs; the orchestrator owns final review, required tests/checks, merge, ledger completion, and worker-thread archival.
 - For non-`xpadev-net` repositories without explicit approval, requirement to stop after implementation, validation, and review evidence are ready, and report that PR creation or orchestrator-owned merge needs user approval.
 - Requirement to keep iterating on non-zero `gh-review-hook` results instead of reporting blocked only for hook failure, but to stop after 30 fix-and-review iterations and ask the orchestrator to inspect the current state.
+- For bug fixes, correctness work, optimization work, migrations, or complex refactors, requirement to perform a bounded investigation before editing and report the baseline, code anchors, root-cause hypothesis, rejected stopgaps, and validation plan.
 - Final report requirements: PR URL, branch head, validation evidence, review evidence, `gh-review-hook` exit 0 or the stopped 30-iteration hook-limit state, local/remote cleanliness, and explicit confirmation that the worker did not merge.
 
 Prefer a new worker over expanding a running worker when the next task is independent. Prefer waiting when the next task touches the same files or depends on a running task.

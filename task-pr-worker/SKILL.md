@@ -25,6 +25,7 @@ When a rule below does not cover the situation, fall back to these principles:
 - Done means verified. Confidence comes from running the checks, not from the change looking right; never report success for anything unrun, and if a check fails, report it as failed with the output rather than softening it.
 - Exhaust what you can resolve yourself — rereading instructions, diagnosing errors, retrying transient failures, researching the codebase — before reporting blocked. When you do stop, the report should show what you tried, not just what failed.
 - When a fix stops working or a check regresses, question the diagnosis before adding another patch. Two speculative fixes stacked on a wrong theory cost more than one step back to re-verify the cause.
+- For bug fixes, correctness work, optimization work, or complex refactors, perform a bounded investigation before editing. Use `references/investigation-before-editing.md` to turn symptoms, existing plans, code anchors, baselines, and rollout risks into an implementation-ready diagnosis.
 
 ## Repository Trust Boundary
 
@@ -54,6 +55,10 @@ Do not stop solely because the worktree began detached after you successfully cr
 Do not report "blocked early by setup constraints" or "context ended before implementation" when no concrete external decision is required. Continue the delegated task from the current branch.
 
 If you must stop during startup or setup anyway, report to the orchestrator before stopping. Include the concrete external decision or missing precondition, branch state, local change state, validation not yet run, and the recommended next action.
+
+## Investigation Before Editing
+
+For delegated bug fixes, correctness work, optimization work, or complex refactors, read `references/investigation-before-editing.md` before changing implementation files. Keep the investigation proportional to task size, but do not skip the root-cause and baseline steps when the task describes a failure, regression, performance problem, or migration risk.
 
 ## Orchestrator Reporting Requirements
 

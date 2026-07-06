@@ -37,14 +37,15 @@ For any repository not owned by `xpadev-net`, do not instruct workers to create 
 
 1. Read the task ledger and identify statuses such as unstarted, in progress, split in progress, stopped, blocked, and complete.
 2. Check open PRs with `gh pr list/view` and read active worker threads.
-3. For merge-ready worker reports, read the PR, worker validation, independent review evidence, and `gh-review-hook` result; run orchestrator-owned review and required tests/checks before merging.
+3. For merge-ready worker reports, read the PR, worker validation, independent review evidence, and worker `gh-review-hook` result; then run orchestrator-owned `$deep-review`, `gh-review-hook`, and required tests/checks before merging. If orchestrator review or hook output finds in-scope issues, send the worker concrete follow-up instructions and leave the PR unmerged.
 4. For blocked worker reports, record the blocker only when it is concrete and cannot be resolved by ordinary worker iteration.
 5. For still-running workers, leave them alone unless a stale push, missing PR, or ambiguous blocker needs a short follow-up.
 6. Start additional unstarted tasks only when their files, domains, or dependencies do not conflict with active workers.
 7. Keep tasks small. Split broad tasks by route group, provider, UI area, validation surface, or user workflow whenever that reduces review risk or avoids conflicts.
 8. If a worker reports that a task is too large or should be decomposed, close/stop that worker thread, update the ledger with the reason, then create new worker threads for the smaller split tasks.
 9. If a worker reports that `gh-review-hook` has not exited 0 after 30 fix-and-review iterations, treat it as a stopped hook-iteration-limit review, not as a blocker. Inspect the latest review output and implementation before deciding the next action.
-10. After orchestrator-owned review, tests, and merge succeed, record PR number, merge commit, validation evidence, and review-hook exit 0 or an approved 30-iteration hook exception in the ledger, then archive/close the worker thread.
+10. Update the task ledger whenever worker state, PR state, validation evidence, review evidence, hook state, blockers, splits, or merge decisions change.
+11. After orchestrator-owned review, tests, and merge succeed, record PR number, merge commit, validation evidence, and review-hook exit 0 or an approved 30-iteration hook exception in the ledger, then archive/close the worker thread.
 
 Do not sit in a manual polling loop. For long-running worker activity, create or update a recurring automation/heartbeat when the platform supports it, and let that scheduled callback perform the next orchestration check. Prefer automation over repeated sleeps, busy waiting, or frequent manual status checks.
 
@@ -124,21 +125,25 @@ Update the ledger whenever orchestration state changes:
 - Mark split work as `split in progress` and list completed and remaining slices.
 - Mark stopped work with the user-approved or orchestrator-approved reason.
 - Mark complete only after current evidence proves merge completion and required hook success, or after an explicit orchestrator-approved 30-iteration hook exception backed by deep-review evidence.
+- Record current PR number/URL, branch head, validation evidence, review evidence, hook state, merge commit, blocker, split decision, worker thread archival, and next action whenever any of those facts changes.
+- If the task ledger is in a git-managed repository, commit and push ledger-only state updates frequently so orchestration can resume from the remote source of truth. Keep these commits small, avoid bundling implementation changes, and follow local git safety rules, including no history rewrite or force push when an open PR exists.
 
 Do not claim completion from memory. Verify against current PR state, worker final report, or both.
 
 ## Orchestrator Merge Gate
 
-Before merging a worker PR:
+Before merging a worker PR, never rely only on the worker's merge-ready report. The orchestrator must independently run `$deep-review` and `gh-review-hook` on the PR, then merge only when both are acceptable alongside required validation.
 
 1. Verify the worker report includes PR URL/number, branch head, validation evidence, independent review evidence, `gh-review-hook` exit 0 or an approved hook-limit exception path, and local/remote cleanliness.
 2. Inspect the PR diff and recent commits with `gh pr view` and `gh pr diff`.
-3. Run the required orchestrator-owned review and tests/checks from the task ledger or delegation prompt. If the worker validation is stale or incomplete, rerun the relevant checks before merge.
-4. If review or tests find in-scope issues, send the worker concrete follow-up instructions and leave the PR unmerged.
-5. If only out-of-scope findings remain, apply the out-of-scope process before merge.
-6. Verify the branch is not behind and all required fixes are pushed. If the branch is behind, instruct the worker to update it or perform the normal merge/update only when that is explicitly orchestrator-owned for the repository.
-7. Merge the PR only after the required evidence is current and acceptable. Do not force push or rewrite history when the branch already has an open PR.
-8. Record the merge commit and evidence in the ledger, then archive/close the worker thread.
+3. Run `$deep-review` as the orchestrator-owned review pass, using the current PR diff, repository review instructions, and relevant review references.
+4. Run orchestrator-owned `gh-review-hook` against the PR, even when the worker already reported hook exit 0.
+5. Run the required tests/checks from the task ledger or delegation prompt. If the worker validation is stale or incomplete, rerun the relevant checks before merge.
+6. If `$deep-review`, `gh-review-hook`, or tests/checks find in-scope issues, send the worker concrete follow-up instructions and leave the PR unmerged.
+7. If only out-of-scope findings remain, apply the out-of-scope process before merge.
+8. Verify the branch is not behind and all required fixes are pushed. If the branch is behind, instruct the worker to update it or perform the normal merge/update only when that is explicitly orchestrator-owned for the repository.
+9. Merge the PR only after the required evidence is current and acceptable, including orchestrator `$deep-review` completion and orchestrator `gh-review-hook` exit 0 or an explicit approved hook-limit exception. Do not force push or rewrite history when the branch already has an open PR.
+10. Record the merge commit and evidence in the ledger, then archive/close the worker thread.
 
 ## Thread Hygiene
 

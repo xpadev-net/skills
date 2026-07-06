@@ -37,7 +37,7 @@ For any repository not owned by `xpadev-net`, do not instruct workers to create 
 
 1. Read the task ledger and identify statuses such as unstarted, in progress, split in progress, stopped, blocked, and complete.
 2. Check open PRs with `gh pr list/view` and read active worker threads.
-3. For merge-ready worker reports, read the PR, worker validation, independent review evidence, and worker `gh-review-hook` result; then run orchestrator-owned `$deep-review`, `gh-review-hook`, and required tests/checks before merging. If orchestrator review or hook output finds in-scope issues, send the worker concrete follow-up instructions and leave the PR unmerged.
+3. For merge-ready worker reports, read the PR, worker validation, independent review evidence, and worker `gh-review-hook` result; then run orchestrator-owned `$deep-review`, `gh-review-hook`, and required tests/checks before merging. If orchestrator review or hook output finds in-scope issues, do not fix them in the parent thread; send the worker concrete follow-up instructions and leave the PR unmerged.
 4. For blocked worker reports, record the blocker only when it is concrete and cannot be resolved by ordinary worker iteration.
 5. For still-running workers, leave them alone unless a stale push, missing PR, or ambiguous blocker needs a short follow-up.
 6. Start additional unstarted tasks only when their files, domains, or dependencies do not conflict with active workers.
@@ -139,7 +139,7 @@ Before merging a worker PR, never rely only on the worker's merge-ready report. 
 3. Run `$deep-review` as the orchestrator-owned review pass, using the current PR diff, repository review instructions, and relevant review references.
 4. Run orchestrator-owned `gh-review-hook` against the PR, even when the worker already reported hook exit 0.
 5. Run the required tests/checks from the task ledger or delegation prompt. If the worker validation is stale or incomplete, rerun the relevant checks before merge.
-6. If `$deep-review`, `gh-review-hook`, or tests/checks find in-scope issues, send the worker concrete follow-up instructions and leave the PR unmerged.
+6. If `$deep-review`, `gh-review-hook`, or tests/checks find in-scope issues after merge-ready handoff, do not modify product code or repair the PR from the parent thread; always send the worker concrete follow-up instructions and leave the PR unmerged.
 7. If only out-of-scope findings remain, apply the out-of-scope process before merge.
 8. Verify the branch is not behind and all required fixes are pushed. If the branch is behind, instruct the worker to update it or perform the normal merge/update only when that is explicitly orchestrator-owned for the repository.
 9. Merge the PR only after the required evidence is current and acceptable, including orchestrator `$deep-review` completion and orchestrator `gh-review-hook` exit 0 or an explicit approved hook-limit exception. Do not force push or rewrite history when the branch already has an open PR.

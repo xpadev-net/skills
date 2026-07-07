@@ -37,11 +37,11 @@ For any repository not owned by `xpadev-net`, do not create a PR unless the user
 
 ## Startup Checklist
 
-1. Read the delegation prompt and repository instructions.
+1. Read the delegation prompt, worker thread goal when available, and repository instructions.
 2. Load any required local harness or workflow skill when available.
 3. Confirm current worktree, branch, and git status.
 4. Create or checkout the requested branch before editing.
-5. If the task ledger is unavailable in the worktree, treat the delegation prompt as the authoritative task text.
+5. If the task ledger is unavailable in the worktree, treat the delegation prompt and worker thread goal as the authoritative task text. If they conflict, stop and ask the orchestrator to clarify the delegated scope before editing.
 6. Record a short plan for non-trivial work when the repository workflow expects one.
 
 Use the repository shell wrapper when local instructions require it. Avoid watch mode and interactive commands.

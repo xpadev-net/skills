@@ -55,6 +55,7 @@ When creating a worker thread, include:
 
 - Repository/workspace target and requirement to use a separate worktree.
 - Exact task ID/title and bounded scope.
+- Worker thread goal: when the platform supports thread goals, set the worker's goal at startup to the exact delegated task ID/title and bounded scope; do not rely only on the message body for task identity.
 - Branch name.
 - Files or directories the worker may touch.
 - Files or domains the worker must not touch.

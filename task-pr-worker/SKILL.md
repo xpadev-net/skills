@@ -43,9 +43,12 @@ For any repository not owned by `xpadev-net`, do not create a PR unless the user
 4. Confirm current worktree, branch, and git status.
 5. Create or checkout the requested branch before editing.
 6. If the task ledger is unavailable in the worktree, treat the delegation prompt and worker thread goal as the authoritative task text. If they conflict, stop and ask the orchestrator to clarify the delegated scope before editing.
-7. Record a short plan for non-trivial work when the repository workflow expects one.
+7. Check required local tooling early enough to avoid a late surprise: repository shell wrapper, `gh`, package manager/runtime, and `gh-review-hook` when the delegation requires it.
+8. Record a short plan for non-trivial work when the repository workflow expects one.
 
 Use the repository shell wrapper when local instructions require it. Avoid watch mode and interactive commands.
+
+If a required wrapper such as `rtk` is unavailable but the underlying command can safely run, use the raw command and report the wrapper limitation. If required PR or review tooling is unavailable, continue implementation and validation when safe, but report the missing tool before claiming merge-ready.
 
 Completing startup, onboarding, repository instruction loading, or the initial plan is not a stopping point. Continue into implementation unless a required precondition is missing, a scope decision is needed, or another reportable stop condition below applies.
 
@@ -99,6 +102,8 @@ pnpm test -- --silent
 
 If a full check is inappropriate for docs-only or fixture-only work, document the waiver, run meaningful alternatives such as secret scans or targeted lint checks, and explain why the waiver is safe.
 
+If hooks or validation scripts fail because the local runtime selected the wrong package manager or Node version, prefer the repository-declared package manager/runtime through corepack, the requested wrapper, or a temporary PATH shim. If commit or push hooks still hang or fail for environment reasons after equivalent required validation has passed, use `--no-verify` only when local rules and the delegation allow it, and report the exact hook failure, equivalent commands run, and reason for bypassing. Never describe bypassed hooks as passed.
+
 ## Review
 
 Before PR creation, perform self-review with `$deep-review` when that skill is available. Use it against the final diff and the task acceptance criteria, and fix valid findings.
@@ -124,7 +129,7 @@ Apply this loop only when the repository is owned by `xpadev-net` or PR creation
 3. Create a PR with `gh`.
 4. Run `gh-review-hook <PR-number>`.
 5. If the hook reports in-scope findings, fix them, commit, push, and rerun. For out-of-scope findings, follow the out-of-scope review finding process before deciding whether to modify the PR.
-6. If the hook reports the branch is behind, merge the base branch normally; do not rewrite history when the branch already has an open PR.
+6. If the hook reports the branch is behind, merge the base branch normally; do not rewrite history when the branch already has an open PR. If normal base integration produces broad conflicts or stale-history risk outside the delegated ownership, stop and ask the orchestrator instead of resolving cross-scope conflicts.
 7. Repeat until `gh-review-hook` exits 0 or the 30-iteration hook limit is reached.
 8. After hook exit 0, verify no unpushed or unstaged changes remain, then verify the PR itself is ready for orchestrator merge-gate handoff: PR is not draft, current remote head matches local head, merge state is CLEAN or equivalent, branch is not behind base, required CI/checks and AI review checks have completed successfully, required validation is current, and independent review evidence is present.
 9. If any of those merge gates are unmet, do not report merge-ready. Resolve worker-owned gates when possible, such as merging the base branch normally, marking a ready PR as non-draft only when it is genuinely ready, pushing fixes, rerunning required validation, or waiting only long enough to inspect already-running checks. If the unmet gate cannot be resolved in the worker environment, report a stopped or tooling-blocked state with the exact unmet gate and recommended next action.
@@ -135,7 +140,7 @@ If push appears stale, verify the remote ref before retrying. Never report merge
 
 Do not report blocked only because `gh-review-hook` has not exited 0. Treat hook findings as ordinary review iteration: fix valid findings, commit, push, and rerun.
 
-If `gh-review-hook` is required but unavailable in the worker environment, do not claim merge-ready or substitute unrelated checks as equivalent. Report the implementation, validation, PR state, and the missing hook command as tooling-blocked so the orchestrator can run the hook or provide a replacement environment.
+If `gh-review-hook` is required but unavailable in the worker environment, first check PATH, repository-local bins, `gh` aliases/extensions, and any orchestrator-provided or previously discovered local hook path. If it remains unavailable, do not claim merge-ready or substitute unrelated checks as equivalent. Report the implementation, validation, PR state, exact searches attempted, and the missing hook command as tooling-blocked so the orchestrator can run the hook or provide a replacement environment.
 
 After 30 fix-and-review iterations without `gh-review-hook` exit 0, stop local iteration and ask the orchestrator to inspect the current state. Report this as a stopped hook-iteration-limit review, not as blocked. Include the latest hook output summary, the recurring or changing findings, the current implementation summary, PR URL/number, branch head, validation evidence, independent review evidence, and whether any local or unpushed changes remain. Wait for orchestrator direction before continuing or decomposing.
 

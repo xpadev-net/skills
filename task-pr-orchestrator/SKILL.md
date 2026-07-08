@@ -21,6 +21,7 @@ When a rule below does not cover the situation, fall back to these principles:
 - Trust workers to iterate; intervene on evidence, not impatience. Most worker friction — hook findings, setup noise, an early pause — is resolved by one resume or continued iteration, not by replacement or escalation.
 - Every merge is a decision you own. Merge only what current evidence proves — validation, independent review, hook state — and record why, so completion claims survive later scrutiny.
 - Distinguish "blocked" (needs an external decision), "still working", and "stopped by policy" precisely; misclassifying these states is the main way an orchestration stalls or thrashes.
+- Keep orchestration state remote-first. Commit small ledger/plan updates, pull or rebase from the remote base before pushing, and push frequently so long-running orchestration can resume from the remote source of truth instead of a local-only branch. When asked to incorporate a backup branch, first prefer the current remote state and import only narrow, still-current ledger or evidence updates.
 - Before any state-changing action — merge, stop, split, archive, replace — check that the evidence supports that specific action. A worker report that pattern-matches a known failure mode may have a different cause; when the signal is ambiguous, gather the missing fact instead of acting on the pattern.
 - Report outcomes faithfully, in both directions: never claim a task complete without current proof, and never soften a failed check or a stopped worker into "in progress". An accurate ledger of bad news beats an optimistic one.
 - Gather what you can gather yourself before asking. Escalate to the user only decisions that are genuinely theirs — approvals, scope changes, trade-offs — not facts you could read from PRs, worker threads, or the repository.
@@ -69,6 +70,7 @@ When creating a worker thread, include:
 - Requirement for independent review before PR.
 - Requirement for worker self-review to use `$deep-review` when that skill is available.
 - Requirement for workers to use subagents actively for research, implementation support, and review when available.
+- Requirement for workers to discover required local tooling early, including the repository shell wrapper, `gh`, package manager/runtime, and `gh-review-hook`; if a wrapper is unavailable but raw commands can safely run, the worker should proceed and report the limitation, but must not claim merge-ready without an actual required hook exit 0 or an orchestrator-approved exception.
 - Requirement that completing worker startup, onboarding, repository instruction loading, or initial planning is not a stopping point unless a reportable precondition is missing.
 - Requirement for the worker to message or report back to the orchestrator thread when the PR is merge-ready, blocked, stopped, or needs decomposition.
 - Requirement that the worker must report to the orchestrator before stopping for any reason, including startup or setup problems.
@@ -131,6 +133,7 @@ Update the ledger whenever orchestration state changes:
 - Mark complete only after current evidence proves merge completion and required hook success, or after an explicit orchestrator-approved 30-iteration hook exception backed by deep-review evidence.
 - Record current PR number/URL, branch head, validation evidence, review evidence, hook state, merge commit, blocker, split decision, worker thread archival, and next action whenever any of those facts changes.
 - If the task ledger is in a git-managed repository, commit and push ledger-only state updates frequently so orchestration can resume from the remote source of truth. Keep these commits small, avoid bundling implementation changes, and follow local git safety rules, including no history rewrite or force push when an open PR exists.
+- Before pushing ledger or plan updates, fetch and integrate the current remote base with a normal pull/rebase workflow. If the local branch has drifted far enough that integrating it would reintroduce stale state, stop using that branch as the source of truth; create a backup branch if useful, restart from the remote base, and reapply only the current ledger or evidence changes.
 
 Do not claim completion from memory. Verify against current PR state, worker final report, or both.
 
@@ -144,6 +147,7 @@ Before merging a worker PR, never rely only on the worker's merge-ready report. 
 4. If preflight finds any unmet gate, stop the parent merge gate immediately and return the PR to the worker with concrete instructions. Do not wait for pending checks, merge base yourself, resolve conflicts, run product-code fixes, or continue toward merge from the parent thread unless the repository/task explicitly says that action is orchestrator-owned.
 5. Run `$deep-review` as the orchestrator-owned review pass, using the current PR diff, repository review instructions, and relevant review references.
 6. Run orchestrator-owned `gh-review-hook` against the PR, even when the worker already reported hook exit 0.
+   - If the hook is reported missing or fails because of PATH/tool lookup, verify `gh`, authentication, configured aliases/extensions, repository-local bins, and any known local hook path from the environment before returning the PR. When the main checkout is dirty for unrelated reasons, run the hook from a clean temporary PR-head worktree. Do not claim hook success until the actual required hook exits 0.
 7. Run the required tests/checks from the task ledger or delegation prompt. If the worker validation is stale or incomplete, rerun the relevant checks before merge.
 8. If `$deep-review`, `gh-review-hook`, or tests/checks find in-scope issues after merge-ready handoff, do not modify product code or repair the PR from the parent thread; always send the worker concrete follow-up instructions and leave the PR unmerged.
 9. If only out-of-scope findings remain, apply the out-of-scope process before merge.

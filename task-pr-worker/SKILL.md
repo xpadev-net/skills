@@ -38,11 +38,12 @@ For any repository not owned by `xpadev-net`, do not create a PR unless the user
 ## Startup Checklist
 
 1. Read the delegation prompt, worker thread goal when available, and repository instructions.
-2. Load any required local harness or workflow skill when available.
-3. Confirm current worktree, branch, and git status.
-4. Create or checkout the requested branch before editing.
-5. If the task ledger is unavailable in the worktree, treat the delegation prompt and worker thread goal as the authoritative task text. If they conflict, stop and ask the orchestrator to clarify the delegated scope before editing.
-6. Record a short plan for non-trivial work when the repository workflow expects one.
+2. When the platform supports thread goals, create or keep an explicit Codex goal for the exact delegated task ID/title and bounded scope before implementation. Keep that goal active until the orchestrator merges, stops, replaces, or archives the task.
+3. Load any required local harness or workflow skill when available.
+4. Confirm current worktree, branch, and git status.
+5. Create or checkout the requested branch before editing.
+6. If the task ledger is unavailable in the worktree, treat the delegation prompt and worker thread goal as the authoritative task text. If they conflict, stop and ask the orchestrator to clarify the delegated scope before editing.
+7. Record a short plan for non-trivial work when the repository workflow expects one.
 
 Use the repository shell wrapper when local instructions require it. Avoid watch mode and interactive commands.
 
@@ -106,6 +107,8 @@ Also get an independent review pass when tools allow it. Ask the reviewer to ins
 
 Do not count your own self-review as the independent review unless no reviewer tool exists; if so, state the limitation.
 
+If independent reviewer tooling fails because of model routing, usage limits, unavailable subagent capacity, or runtime errors, retry once with the orchestrator-specified model/runtime when one was provided. If it still fails, report a tooling-blocked or review-incomplete state to the orchestrator instead of claiming independent approval. Include the attempted model/runtime, error class, and whether external PR review checks such as CodeRabbit or Greptile have completed.
+
 ## Out-of-Scope Review Findings
 
 When a reviewer, `$deep-review`, or `gh-review-hook` raises a finding outside the delegated task scope, do not silently expand the PR. Report the finding to the orchestrator and ask whether it should be filed as separate work or handled in the current PR. Include the finding text, why it appears out of scope, the affected files/domains, and any risk of leaving it unfixed.
@@ -123,12 +126,16 @@ Apply this loop only when the repository is owned by `xpadev-net` or PR creation
 5. If the hook reports in-scope findings, fix them, commit, push, and rerun. For out-of-scope findings, follow the out-of-scope review finding process before deciding whether to modify the PR.
 6. If the hook reports the branch is behind, merge the base branch normally; do not rewrite history when the branch already has an open PR.
 7. Repeat until `gh-review-hook` exits 0 or the 30-iteration hook limit is reached.
-8. After hook exit 0, verify no unpushed or unstaged changes remain, then send or otherwise provide a merge-ready report to the orchestrator thread with the final report details before stopping.
-9. Do not merge the PR. The orchestrator owns final review, required tests/checks, merge, ledger completion, and worker-thread archival.
+8. After hook exit 0, verify no unpushed or unstaged changes remain, then verify the PR itself is ready for orchestrator merge-gate handoff: PR is not draft, current remote head matches local head, merge state is CLEAN or equivalent, branch is not behind base, required CI/checks and AI review checks have completed successfully, required validation is current, and independent review evidence is present.
+9. If any of those merge gates are unmet, do not report merge-ready. Resolve worker-owned gates when possible, such as merging the base branch normally, marking a ready PR as non-draft only when it is genuinely ready, pushing fixes, rerunning required validation, or waiting only long enough to inspect already-running checks. If the unmet gate cannot be resolved in the worker environment, report a stopped or tooling-blocked state with the exact unmet gate and recommended next action.
+10. Only after all worker-owned merge gates are satisfied, send or otherwise provide a merge-ready report to the orchestrator thread with the final report details before stopping.
+11. Do not merge the PR. The orchestrator owns final review, required tests/checks, merge, ledger completion, and worker-thread archival.
 
 If push appears stale, verify the remote ref before retrying. Never report merge-ready while local required fixes are unpushed.
 
 Do not report blocked only because `gh-review-hook` has not exited 0. Treat hook findings as ordinary review iteration: fix valid findings, commit, push, and rerun.
+
+If `gh-review-hook` is required but unavailable in the worker environment, do not claim merge-ready or substitute unrelated checks as equivalent. Report the implementation, validation, PR state, and the missing hook command as tooling-blocked so the orchestrator can run the hook or provide a replacement environment.
 
 After 30 fix-and-review iterations without `gh-review-hook` exit 0, stop local iteration and ask the orchestrator to inspect the current state. Report this as a stopped hook-iteration-limit review, not as blocked. Include the latest hook output summary, the recurring or changing findings, the current implementation summary, PR URL/number, branch head, validation evidence, independent review evidence, and whether any local or unpushed changes remain. Wait for orchestrator direction before continuing or decomposing.
 
@@ -141,6 +148,7 @@ Report in the repository's requested language. Include:
 - Targeted and full validation results.
 - Independent review result.
 - `gh-review-hook` exit 0, or the orchestrator-directed outcome after a 30-iteration hook limit.
+- Current PR readiness state: draft/non-draft, head SHA, merge state, branch-behind status, required CI/check status, local/remote cleanliness, and whether any required merge gate is still unmet.
 - Any out-of-scope findings deferred by orchestrator direction and where they are documented in the PR description.
 - Any waiver or residual risk.
 - Confirmation that the PR was not merged and is ready for orchestrator-owned final review, tests, merge, and archival.
